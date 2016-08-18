@@ -1,7 +1,7 @@
 package me.codingcat.bicycle
 
-import ml.dmlc.xgboost4j.LabeledPoint
 import org.apache.spark.SparkContext
+import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 case class Feature(date: String, season: Int, holiday: Int, workingDay: Int, weather: Int,

@@ -3,8 +3,9 @@ package me.codingcat.bicycle
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
-import ml.dmlc.xgboost4j.LabeledPoint
 import org.apache.spark.SparkContext
+import org.apache.spark.mllib.linalg.SparseVector
+import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 class FirstFeatureGenerator(sc: SparkContext) extends BasicFeatureExtractor(sc) {
@@ -28,30 +29,27 @@ class FirstFeatureGenerator(sc: SparkContext) extends BasicFeatureExtractor(sc) 
       case Feature(date, season, holiday, workingDay, weather, temp, atemp, humidity, windspeed,
         groundTruth) =>
         // expand date feature to y/m/d/h/dayofweek
-        val labeledPoint = new LabeledPoint()
-        labeledPoint.indices = new Array[Int](13)
-        labeledPoint.values = new Array[Float](13)
+        val indices = new Array[Int](13)
+        val values = new Array[Float](13)
         val (year, month, day, hour, dayOfWeek) = translateDateStringToYMDHDOfW(date)
         for (i <- 0 until 13) {
-          labeledPoint.indices(i) = i
+          indices(i) = i
         }
-        labeledPoint.values(0) = year
-        labeledPoint.values(1) = month
-        labeledPoint.values(2) = day
-        labeledPoint.values(3) = hour
-        labeledPoint.values(4) = dayOfWeek
-        labeledPoint.values(5) = season
-        labeledPoint.values(6) = holiday
-        labeledPoint.values(7) = workingDay
-        labeledPoint.values(8) = weather
-        labeledPoint.values(9) = temp
-        labeledPoint.values(10) = atemp
-        labeledPoint.values(11) = humidity
-        labeledPoint.values(12) = windspeed
-        if (groundTruth.isDefined) {
-          labeledPoint.label = groundTruth.get
-        }
-        labeledPoint
+        values(0) = year
+        values(1) = month
+        values(2) = day
+        values(3) = hour
+        values(4) = dayOfWeek
+        values(5) = season
+        values(6) = holiday
+        values(7) = workingDay
+        values(8) = weather
+        values(9) = temp
+        values(10) = atemp
+        values(11) = humidity
+        values(12) = windspeed
+        val featureVector = new SparseVector(13, indices, values.map(_.toDouble))
+        LabeledPoint(groundTruth.getOrElse(-1).toDouble, featureVector)
     }
     featureRdd
   }
