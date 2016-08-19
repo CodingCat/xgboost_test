@@ -3,12 +3,14 @@ package me.codingcat.bicycle
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
+import ml.dmlc.xgboost4j.scala.DMatrix
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.linalg.SparseVector
+import ml.dmlc.xgboost4j.{LabeledPoint => XGBoostLabeledPoint}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
 
-class FirstFeatureGenerator(sc: SparkContext) extends BasicFeatureExtractor(sc) {
+class FirstFeatureGenerator(@transient sc: SparkContext) extends BasicFeatureExtractor(sc) {
 
   private val c = Calendar.getInstance()
 
@@ -23,34 +25,56 @@ class FirstFeatureGenerator(sc: SparkContext) extends BasicFeatureExtractor(sc) 
     (year, month, day, hour, dayOfWeek)
   }
 
-  override def generateFeatureRDD(datasetPath: String): RDD[LabeledPoint] = {
-    val rawFeatureRDD = generateRawFeature(datasetPath)
-    val featureRdd = rawFeatureRDD.map {
-      case Feature(date, season, holiday, workingDay, weather, temp, atemp, humidity, windspeed,
-        groundTruth) =>
-        // expand date feature to y/m/d/h/dayofweek
-        val indices = new Array[Int](13)
-        val values = new Array[Float](13)
-        val (year, month, day, hour, dayOfWeek) = translateDateStringToYMDHDOfW(date)
-        for (i <- 0 until 13) {
-          indices(i) = i
-        }
-        values(0) = year
-        values(1) = month
-        values(2) = day
-        values(3) = hour
-        values(4) = dayOfWeek
-        values(5) = season
-        values(6) = holiday
-        values(7) = workingDay
-        values(8) = weather
-        values(9) = temp
-        values(10) = atemp
-        values(11) = humidity
-        values(12) = windspeed
-        val featureVector = new SparseVector(13, indices, values.map(_.toDouble))
-        LabeledPoint(groundTruth.getOrElse(-1).toDouble, featureVector)
+  private def fromRawFeatureToIndicesAndValuesArray(feature: Feature): (Array[Int], Array[Float])
+      = {
+    val indices = new Array[Int](13)
+    val values = new Array[Float](13)
+    val (year, month, day, hour, dayOfWeek) = translateDateStringToYMDHDOfW(feature.date)
+    for (i <- 0 until 13) {
+      indices(i) = i
     }
-    featureRdd
+    values(0) = year
+    values(1) = month
+    values(2) = day
+    values(3) = hour
+    values(4) = dayOfWeek
+    values(5) = feature.season
+    values(6) = feature.holiday
+    values(7) = feature.workingDay
+    values(8) = feature.weather
+    values(9) = feature.temp
+    values(10) = feature.atemp
+    values(11) = feature.humidity
+    values(12) = feature.windspeed
+    (indices, values)
+  }
+
+  private def fromRawFeatureToSparseVector(feature: Feature): SparseVector = {
+    // expand date feature to y/m/d/h/dayofweek
+    val (indices, values) = fromRawFeatureToIndicesAndValuesArray(feature)
+    new SparseVector(13, indices, values.map(_.toDouble))
+  }
+
+  override def generateFeatureRDD(datasetPath: String): RDD[LabeledPoint] = {
+    val rawFeatureRDD = generateRawFeatureRDD(datasetPath)
+    val featureRdd = rawFeatureRDD.map {
+      case f @ Feature(date, season, holiday, workingDay, weather, temp, atemp, humidity, windspeed,
+        groundTruth) =>
+        LabeledPoint(groundTruth.getOrElse(-1).toDouble, fromRawFeatureToSparseVector(f))
+    }
+    featureRdd.cache()
+  }
+
+  override def genenerateFeatureDMatrix(datasetPath: String, containsGroundTruth: Boolean = true):
+      DMatrix = {
+    val rawFeatureItr = generateRawFeatureIterator(datasetPath, containsGroundTruth)
+    val transformedFeatureItr = rawFeatureItr.map {
+      case f @ Feature(date, season, holiday, workingDay, weather, temp, atemp, humidity,
+          windspeed, groundTruth) =>
+        // expand date feature to y/m/d/h/dayofweek
+        val (indices, values) = fromRawFeatureToIndicesAndValuesArray(f)
+        XGBoostLabeledPoint.fromSparseVector(groundTruth.getOrElse(-1).toFloat, indices, values)
+    }
+    new DMatrix(transformedFeatureItr)
   }
 }

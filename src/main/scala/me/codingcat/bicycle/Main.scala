@@ -25,7 +25,8 @@ object Main {
     params += "ntreelimit" -> 1000
     params += "objective" -> "reg:linear"
 
-    val testMatrix = new DMatrix(testPath)
+    val testMatrix = featureGenerator.genenerateFeatureDMatrix(testPath,
+      containsGroundTruth =  false)
     val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
       useExternalMemory = true)
     xgBooster.predict(testMatrix)
