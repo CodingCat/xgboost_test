@@ -26,14 +26,15 @@ object Main {
     params += "objective" -> "reg:linear"
 
     val testMatrix = featureGenerator.genenerateFeatureDMatrix(testPath,
-      containsGroundTruth =  false)
+      containsGroundTruth =  true)
     val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
-      useExternalMemory = true)
+      useExternalMemory = true, eval = new RMLSEEval)
     // val predictiveResults = xgBooster.predict(testMatrix)
     val evalMatries = new Array[DMatrix](1)
     evalMatries(0) = testMatrix
     val evalMatriesName = new Array[String](1)
     evalMatriesName(0) = "test"
-    println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, 0))
+    //println(xgBooster.predict(testMatrix).toList.map(_.toList))
+    println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, new RMLSEEval))
   }
 }
