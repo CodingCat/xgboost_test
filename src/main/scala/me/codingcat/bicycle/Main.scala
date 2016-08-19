@@ -29,6 +29,11 @@ object Main {
       containsGroundTruth =  false)
     val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
       useExternalMemory = true)
-    xgBooster.predict(testMatrix)
+    // val predictiveResults = xgBooster.predict(testMatrix)
+    val evalMatries = new Array[DMatrix](1)
+    evalMatries(0) = testMatrix
+    val evalMatriesName = new Array[String](1)
+    evalMatriesName(0) = "test"
+    println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, 0))
   }
 }

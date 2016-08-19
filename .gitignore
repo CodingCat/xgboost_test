@@ -3,3 +3,8 @@ lib
 project
 target
 *.iml
+*.Main-dtrain_cache-0
+
+*.meta
+
+*.page
