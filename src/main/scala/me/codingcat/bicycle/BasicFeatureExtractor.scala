@@ -67,7 +67,7 @@ abstract class BasicFeatureExtractor(@transient sc: SparkContext) extends Serial
     }
   }
 
-  def generateFeatureRDD(datasetPath: String): RDD[LabeledPoint]
+  def generateLabeledPointRDD(datasetPath: String, containsGroundTruth: Boolean = true): RDD[LabeledPoint]
 
-  def genenerateFeatureDMatrix(datasetPath: String, containsGroundTruth: Boolean): DMatrix
+  def generateDMatrix(datasetPath: String, containsGroundTruth: Boolean): DMatrix
 }

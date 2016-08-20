@@ -16,7 +16,7 @@ object Main {
     val testPath = args(1)
     val iterations = args(2).toInt
     val featureGenerator = new FirstFeatureGenerator(sc)
-    val trainingRDD = featureGenerator.generateFeatureRDD(trainingPath)
+    val trainingRDD = featureGenerator.generateLabeledPointRDD(trainingPath)
 
     val params = new mutable.HashMap[String, Any]()
     params += "eta" -> 0.1
@@ -25,16 +25,19 @@ object Main {
     params += "ntreelimit" -> 1000
     params += "objective" -> "reg:linear"
 
-    val testMatrix = featureGenerator.genenerateFeatureDMatrix(testPath,
+    val testMatrix = featureGenerator.generateDMatrix(testPath,
       containsGroundTruth =  true)
     val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
       useExternalMemory = true, eval = new RMLSEEval)
     // val predictiveResults = xgBooster.predict(testMatrix)
-    val evalMatries = new Array[DMatrix](1)
-    evalMatries(0) = testMatrix
-    val evalMatriesName = new Array[String](1)
-    evalMatriesName(0) = "test"
+    // val evalMatries = new Array[DMatrix](1)
+    // evalMatries(0) = testMatrix
+    // val evalMatriesName = new Array[String](1)
+    // evalMatriesName(0) = "test"
     //println(xgBooster.predict(testMatrix).toList.map(_.toList))
-    println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, new RMLSEEval))
+    //println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, new RMLSEEval))
+    val testsetRDD = featureGenerator.generateLabeledPointRDD(testPath, containsGroundTruth = true)
+    println(xgBooster.eval(testsetRDD, eval = new RMLSEEval, evalName = "test",
+      useExternalCache = false))
   }
 }

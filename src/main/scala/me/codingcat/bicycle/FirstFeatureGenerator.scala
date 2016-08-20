@@ -55,7 +55,8 @@ class FirstFeatureGenerator(@transient sc: SparkContext) extends BasicFeatureExt
     new SparseVector(13, indices, values.map(_.toDouble))
   }
 
-  override def generateFeatureRDD(datasetPath: String): RDD[LabeledPoint] = {
+  override def generateLabeledPointRDD(datasetPath: String, containsGroundTruth: Boolean = true):
+      RDD[LabeledPoint] = {
     val rawFeatureRDD = generateRawFeatureRDD(datasetPath)
     val featureRdd = rawFeatureRDD.map {
       case f @ Feature(date, season, holiday, workingDay, weather, temp, atemp, humidity, windspeed,
@@ -65,7 +66,7 @@ class FirstFeatureGenerator(@transient sc: SparkContext) extends BasicFeatureExt
     featureRdd.cache()
   }
 
-  override def genenerateFeatureDMatrix(datasetPath: String, containsGroundTruth: Boolean = true):
+  override def generateDMatrix(datasetPath: String, containsGroundTruth: Boolean = true):
       DMatrix = {
     val rawFeatureItr = generateRawFeatureIterator(datasetPath, containsGroundTruth)
     val transformedFeatureItr = rawFeatureItr.map {
