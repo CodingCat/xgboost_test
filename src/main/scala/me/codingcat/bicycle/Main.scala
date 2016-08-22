@@ -2,7 +2,6 @@ package me.codingcat.bicycle
 
 import scala.collection.mutable
 
-import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.spark.XGBoost
 import org.apache.spark.SparkContext
 
