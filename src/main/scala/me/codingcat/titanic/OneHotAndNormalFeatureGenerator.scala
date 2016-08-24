@@ -27,15 +27,21 @@ class OneHotAndNormalFeatureGenerator(
     val list = new ListBuffer[PassengerInfo]
     for (line <- Source.fromFile(filePath).getLines()) {
       val featureStringArray = line.split(",")
-      val pClass = {if (featureStringArray(2) != null) featureStringArray(2).toFloat else -1.0f}
-      val sex = featureStringArray(4)
-      val age = {if (featureStringArray(5) != null) featureStringArray(5).toFloat else -1.0f}
-      val sibsp = {if (featureStringArray(6) != null) featureStringArray(6).toFloat else -1.0f}
-      val parch = {if (featureStringArray(7) != null) featureStringArray(7).toFloat else -1.0f}
-      val ticket = featureStringArray(8)
-      val fare = {if (featureStringArray(9) != null) featureStringArray(9).toFloat else -1.0f}
-      val cabin = featureStringArray(10)
-      val embarked = featureStringArray(11)
+      val pClass = {if (featureStringArray(2).length > 0) featureStringArray(2).toFloat else -1.0f}
+      val sex = featureStringArray(5)
+      val age = {if (featureStringArray(6).length > 0) featureStringArray(6).toFloat else -1.0f}
+      val sibsp = {if (featureStringArray(7).length > 0) featureStringArray(7).toFloat else -1.0f}
+      val parch = {if (featureStringArray(8).length > 0) featureStringArray(8).toFloat else -1.0f}
+      val ticket = featureStringArray(9)
+      val fare = {if (featureStringArray(10).length > 0) featureStringArray(10).toFloat else -1.0f}
+      val cabin = featureStringArray(11)
+      val embarked = {
+        var ret = ""
+        if (featureStringArray.length >= 13) {
+          ret = featureStringArray(12)
+        }
+        ret
+      }
       val survived = featureStringArray(1).toInt
       list += PassengerInfo(pClass, sex, age, sibsp, parch, ticket, fare, cabin, embarked, survived)
     }

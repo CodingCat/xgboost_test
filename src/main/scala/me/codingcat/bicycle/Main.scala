@@ -7,10 +7,8 @@ import org.apache.spark.SparkContext
 
 object Main {
 
-  var sc: SparkContext = null
-
   def main(args: Array[String]): Unit = {
-    sc = new SparkContext()
+    val sc = new SparkContext()
     val trainingPath = args(0)
     val testPath = args(1)
     val iterations = args(2).toInt
