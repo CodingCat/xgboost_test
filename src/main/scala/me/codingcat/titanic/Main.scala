@@ -33,6 +33,9 @@ object Main {
     val evalMatriesNames = new Array[String](1)
     evalMatriesNames(0) = "test"
     println(xgBooster.booster.evalSet(evalMatries, evalMatriesNames, iterations))
+
+    println("===========")
+    println(xgBooster.booster.getModelDump().toList)
   }
 
 }
