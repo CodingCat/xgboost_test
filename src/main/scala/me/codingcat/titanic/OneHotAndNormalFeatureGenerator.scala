@@ -6,8 +6,8 @@ import scala.io.Source
 import me.codingcat.base.BasicFeatureExtractor
 import ml.dmlc.xgboost4j.scala.DMatrix
 import org.apache.spark.SparkContext
-import org.apache.spark.mllib.linalg.{Vector => SparkVector, DenseVector}
-import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.ml.linalg.{Vector => SparkVector, DenseVector}
+import org.apache.spark.ml.feature.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 
@@ -21,7 +21,8 @@ case class TransformedPassengerInfo(
     cabin: Array[Float], Embarked: Array[Float])
 
 class OneHotAndNormalFeatureGenerator(
-    @transient sc: SparkContext) extends BasicFeatureExtractor(sc) {
+    @transient override val sc: SparkContext)
+  extends BasicFeatureExtractor(sc) {
 
   private def parseFileToRawPassengerInfo(filePath: String): List[PassengerInfo] = {
     val list = new ListBuffer[PassengerInfo]

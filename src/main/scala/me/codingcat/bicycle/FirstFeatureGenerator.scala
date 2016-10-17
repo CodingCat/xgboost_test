@@ -10,15 +10,16 @@ import me.codingcat.base.BasicFeatureExtractor
 import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.{LabeledPoint => XGBoostLabeledPoint}
 import org.apache.spark.SparkContext
-import org.apache.spark.mllib.linalg.SparseVector
-import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.ml.linalg.SparseVector
+import org.apache.spark.ml.feature.LabeledPoint
 import org.apache.spark.rdd.RDD
 
 case class Feature(date: String, season: Int, holiday: Int, workingDay: Int, weather: Int,
                    temp: Float, atemp: Float, humidity: Int, windspeed: Float,
                    groundTruth: Option[Int])
 
-class FirstFeatureGenerator(@transient sc: SparkContext) extends BasicFeatureExtractor(sc) {
+class FirstFeatureGenerator(@transient override val sc: SparkContext)
+  extends BasicFeatureExtractor(sc) {
 
   private val c = Calendar.getInstance()
 

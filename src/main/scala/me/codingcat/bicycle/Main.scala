@@ -21,10 +21,12 @@ object Main {
     params += "silent" -> 0
     params += "ntreelimit" -> 1000
     params += "objective" -> "reg:linear"
+    params += "subsample" -> 0.8
+    params += "round" -> 100
 
     val testMatrix = featureGenerator.generateDMatrix(testPath,
       containsGroundTruth =  true)
-    val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
+    val xgBooster = XGBoost.trainWithRDD(trainingRDD, params.toMap, round = iterations, nWorkers = 4,
       useExternalMemory = true, eval = new RMLSEEval)
     // val predictiveResults = xgBooster.predict(testMatrix)
     // val evalMatries = new Array[DMatrix](1)
@@ -34,7 +36,7 @@ object Main {
     //println(xgBooster.predict(testMatrix).toList.map(_.toList))
     //println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, new RMLSEEval))
     val testsetRDD = featureGenerator.generateLabeledPointRDD(testPath, containsGroundTruth = true)
-    println(xgBooster.eval(testsetRDD, eval = new RMLSEEval, evalName = "test",
+    println(xgBooster.eval(testsetRDD, evalFunc = new RMLSEEval, evalName = "test",
       useExternalCache = false))
   }
 }
