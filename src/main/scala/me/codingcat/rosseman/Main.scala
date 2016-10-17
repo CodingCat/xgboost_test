@@ -3,7 +3,9 @@ package me.codingcat.rosseman
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object Main {
 
@@ -75,6 +77,54 @@ object Main {
     records.toList
   }
 
+  private def featureEngineering(ds: DataFrame): Unit = {
+    import org.apache.spark.sql.functions._
+    import ds.sparkSession.implicits._
+    val stateHolidayIndexer = new StringIndexer()
+      .setInputCol("stateHoliday")
+      .setOutputCol("stateHolidayIndex")
+    val schoolHolidayIndexer = new StringIndexer()
+      .setInputCol("schoolHoliday")
+      .setOutputCol("schoolHolidayIndex")
+    val storeTypeIndexer = new StringIndexer()
+      .setInputCol("storeType")
+      .setOutputCol("storeTypeIndex")
+    val assortmentIndexer = new StringIndexer()
+      .setInputCol("assortment")
+      .setOutputCol("assortmentIndex")
+    val promoInterval = new StringIndexer()
+      .setInputCol("promoInterval")
+      .setOutputCol("promoIntervalIndex")
+    val filteredDS = ds.filter($"sales" > 0).filter($"open" > 0)
+    // parse date
+    val dsWithDayCol =
+      filteredDS.withColumn("day", udf((dateStr: String) => dateStr.split("-")(2)).apply(col("date")))
+    val dsWithMonthCol =
+      dsWithDayCol.withColumn("month", udf((dateStr: String) => dateStr.split("-")(1)).apply(col("date")))
+    val dsWithYearCol =
+      dsWithMonthCol.withColumn("year", udf((dateStr: String) => dateStr.split("-")(0)).apply(col("date")))
+    val dsWithLogSales = dsWithYearCol.withColumn("logSales",
+      udf((sales: Int) => math.log(sales)).apply(col("sales")))
+
+    // fill with mean values
+    val meanCompetitionDistance = dsWithLogSales.select(avg("competitionDistance")).first()(0).
+      asInstanceOf[Double]
+    println("====" + meanCompetitionDistance)
+    val finalDS = dsWithLogSales.withColumn("transformedCompetitionDistance",
+      udf((distance: Int) => if (distance > 0) distance.toDouble else meanCompetitionDistance).
+        apply(col("competitionDistance")))
+
+    val pipeline = new Pipeline().setStages(
+      Array(stateHolidayIndexer, schoolHolidayIndexer, storeTypeIndexer, assortmentIndexer,
+        promoInterval))
+
+    pipeline.fit(finalDS).transform(finalDS).
+      drop("stateHoliday", "schoolHoliday", "storeType", "assortment", "promoInterval", "sales",
+      "promo2SinceWeek", "customers", "promoInterval", "competitionOpenSinceYear",
+        "competitionOpenSinceMonth", "promo2SinceYear", "competitionDistance").show()
+
+  }
+
   def main(args: Array[String]): Unit = {
     val sparkSession = SparkSession.builder().appName("rosseman").getOrCreate()
     import sparkSession.implicits._
@@ -84,12 +134,13 @@ object Main {
     val allSalesRecords = parseTrainingFile(trainingPath)
     // create dataset
     val salesRecordsDF = allSalesRecords.toDF
-    salesRecordsDF.show()
 
     // parse store file to data frame
     val storeFilePath = args(1)
     val allStores = parseStoreFile(storeFilePath)
     val storesDS = allStores.toDF()
-    storesDS.show()
+
+    val fullDataset = salesRecordsDF.join(storesDS, "storeId")
+    featureEngineering(fullDataset)
   }
 }
