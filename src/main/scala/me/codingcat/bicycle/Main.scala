@@ -26,7 +26,7 @@ object Main {
 
     val testMatrix = featureGenerator.generateDMatrix(testPath,
       containsGroundTruth =  true)
-    val xgBooster = XGBoost.trainWithRDD(trainingRDD, params.toMap, round = iterations, nWorkers = 4,
+    val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 4,
       useExternalMemory = true, eval = new RMLSEEval)
     // val predictiveResults = xgBooster.predict(testMatrix)
     // val evalMatries = new Array[DMatrix](1)

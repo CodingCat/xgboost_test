@@ -22,7 +22,7 @@ resolvers += "sonatype-releases" at "https://oss.sonatype.org/content/repositori
 
 libraryDependencies ++= Seq(
   "org.scalatest" % "scalatest_2.11" % "2.2.5",
-  "org.apache.spark" % "spark-mllib_2.11" % "2.0.0"
+  "org.apache.spark" % "spark-mllib_2.11" % "2.0.1"
 )
 
 

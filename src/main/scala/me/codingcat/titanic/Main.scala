@@ -24,7 +24,7 @@ object Main {
     params += "ntreelimit" -> 1000
     params += "objective" -> "binary:logistic"
 
-    val xgBooster = XGBoost.trainWithRDD(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
+    val xgBooster = XGBoost.train(trainingRDD, params.toMap, round = iterations, nWorkers = 1,
       useExternalMemory = false)
 
     val testDMatrix = featureGenerator.generateDMatrix(testPath, containsGroundTruth = true)
