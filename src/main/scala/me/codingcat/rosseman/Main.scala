@@ -1,10 +1,12 @@
 package me.codingcat.rosseman
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
+import ml.dmlc.xgboost4j.scala.spark.XGBoost
 import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.feature.StringIndexer
+import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object Main {
@@ -77,7 +79,7 @@ object Main {
     records.toList
   }
 
-  private def featureEngineering(ds: DataFrame): Unit = {
+  private def featureEngineering(ds: DataFrame): DataFrame = {
     import org.apache.spark.sql.functions._
     import ds.sparkSession.implicits._
     val stateHolidayIndexer = new StringIndexer()
@@ -98,11 +100,11 @@ object Main {
     val filteredDS = ds.filter($"sales" > 0).filter($"open" > 0)
     // parse date
     val dsWithDayCol =
-      filteredDS.withColumn("day", udf((dateStr: String) => dateStr.split("-")(2)).apply(col("date")))
+      filteredDS.withColumn("day", udf((dateStr: String) => dateStr.split("-")(2).toInt).apply(col("date")))
     val dsWithMonthCol =
-      dsWithDayCol.withColumn("month", udf((dateStr: String) => dateStr.split("-")(1)).apply(col("date")))
+      dsWithDayCol.withColumn("month", udf((dateStr: String) => dateStr.split("-")(1).toInt).apply(col("date")))
     val dsWithYearCol =
-      dsWithMonthCol.withColumn("year", udf((dateStr: String) => dateStr.split("-")(0)).apply(col("date")))
+      dsWithMonthCol.withColumn("year", udf((dateStr: String) => dateStr.split("-")(0).toInt).apply(col("date")))
     val dsWithLogSales = dsWithYearCol.withColumn("logSales",
       udf((sales: Int) => math.log(sales)).apply(col("sales")))
 
@@ -114,15 +116,20 @@ object Main {
       udf((distance: Int) => if (distance > 0) distance.toDouble else meanCompetitionDistance).
         apply(col("competitionDistance")))
 
+    val vectorAssembler = new VectorAssembler()
+      .setInputCols(Array("storeId", "daysOfWeek", "promo", "competitionDistance", "promo2", "day",
+      "month", "year", "transformedCompetitionDistance", "stateHolidayIndex", "schoolHolidayIndex",
+      "storeTypeIndex", "assortmentIndex", "promoIntervalIndex"))
+      .setOutputCol("features")
+
     val pipeline = new Pipeline().setStages(
       Array(stateHolidayIndexer, schoolHolidayIndexer, storeTypeIndexer, assortmentIndexer,
-        promoInterval))
+        promoInterval, vectorAssembler))
 
     pipeline.fit(finalDS).transform(finalDS).
       drop("stateHoliday", "schoolHoliday", "storeType", "assortment", "promoInterval", "sales",
       "promo2SinceWeek", "customers", "promoInterval", "competitionOpenSinceYear",
-        "competitionOpenSinceMonth", "promo2SinceYear", "competitionDistance").show()
-
+        "competitionOpenSinceMonth", "promo2SinceYear", "competitionDistance", "date")
   }
 
   def main(args: Array[String]): Unit = {
@@ -141,6 +148,17 @@ object Main {
     val storesDS = allStores.toDF()
 
     val fullDataset = salesRecordsDF.join(storesDS, "storeId")
-    featureEngineering(fullDataset)
+    val featureEngineeredDF = featureEngineering(fullDataset)
+    // prediction
+    val params = new mutable.HashMap[String, Any]()
+    params += "eta" -> 0.1
+    params += "max_depth" -> 6
+    params += "silent" -> 0
+    params += "ntreelimit" -> 1000
+    params += "objective" -> "reg:linear"
+    params += "subsample" -> 0.8
+    params += "round" -> 100
+    val trainedModel = XGBoost.trainWithDataFrame(featureEngineeredDF, params.toMap,
+      100, 4, null, null, useExternalMemory = true, labelCol = "logSales")
   }
 }
