@@ -4,17 +4,19 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
-import ml.dmlc.xgboost4j.scala.spark.XGBoost
+import ml.dmlc.xgboost4j.scala.spark.{XGBoostEstimator, XGBoost}
 import org.apache.spark.ml.Pipeline
+import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.ml.param.ParamMap
+import org.apache.spark.ml.tuning.{CrossValidatorModel, CrossValidator, ParamGridBuilder}
+import org.apache.spark.sql.{Dataset, DataFrame, SparkSession}
 
 object Main {
 
   private def parseStoreFile(storeFilePath: String): List[Store] = {
     var isHeader = true
     val storeInstances = new ListBuffer[Store]
-    var cnt = 0
     for (line <- Source.fromFile(storeFilePath).getLines()) {
       if (isHeader) {
         isHeader = false
@@ -50,11 +52,9 @@ object Main {
         } catch {
           case e: Exception =>
             e.printStackTrace()
-            println(cnt)
             sys.exit(1)
         }
       }
-      cnt += 1
     }
     storeInstances.toList
   }
@@ -132,6 +132,23 @@ object Main {
         "competitionOpenSinceMonth", "promo2SinceYear", "competitionDistance", "date")
   }
 
+  private def crossValidation(
+      xgboostParam: Map[String, Any],
+      trainingData: Dataset[_]): CrossValidatorModel = {
+    val xgbEstimator = new XGBoostEstimator(xgboostParam).setFeaturesCol("features").
+      setLabelCol("logSales")
+    val paramGrid = new ParamGridBuilder()
+      .addGrid(xgbEstimator.round, Array(20, 50))
+      .addGrid(xgbEstimator.eta, Array(0.1, 0.4))
+      .build()
+    val cv = new CrossValidator()
+      .setEstimator(xgbEstimator)
+      .setEvaluator(new RegressionEvaluator().setLabelCol("logSales"))
+      .setEstimatorParamMaps(paramGrid)
+      .setNumFolds(3)  // Use 3+ in practice
+    cv.fit(trainingData)
+  }
+
   def main(args: Array[String]): Unit = {
     val sparkSession = SparkSession.builder().appName("rosseman").getOrCreate()
     import sparkSession.implicits._
@@ -153,12 +170,12 @@ object Main {
     val params = new mutable.HashMap[String, Any]()
     params += "eta" -> 0.1
     params += "max_depth" -> 6
-    params += "silent" -> 0
+    params += "silent" -> 1
     params += "ntreelimit" -> 1000
     params += "objective" -> "reg:linear"
     params += "subsample" -> 0.8
     params += "round" -> 100
-    val trainedModel = XGBoost.trainWithDataFrame(featureEngineeredDF, params.toMap,
-      100, 4, null, null, useExternalMemory = true, labelCol = "logSales")
+
+    val bestModel = crossValidation(params.toMap, featureEngineeredDF)
   }
 }
