@@ -21,8 +21,7 @@ case class TransformedPassengerInfo(
     cabin: Array[Float], Embarked: Array[Float])
 
 class OneHotAndNormalFeatureGenerator(
-    @transient override val sc: SparkContext)
-  extends BasicFeatureExtractor(sc) {
+    @transient val sc: SparkContext) {
 
   private def parseFileToRawPassengerInfo(filePath: String): List[PassengerInfo] = {
     val list = new ListBuffer[PassengerInfo]
@@ -114,15 +113,13 @@ class OneHotAndNormalFeatureGenerator(
     }
   }
 
-  override def generateLabeledPointRDD(datasetPath: String, containsGroundTruth: Boolean):
-      RDD[LabeledPoint] = {
+  def generateLabeledPointRDD(datasetPath: String, containsGroundTruth: Boolean):
+      List[LabeledPoint] = {
     val rawFeatures = parseFileToRawPassengerInfo(datasetPath)
-    val labeledPoints = oneHotEncodingAndNormalization(rawFeatures)
-    val labeledPointsRDD = sc.parallelize(labeledPoints)
-    labeledPointsRDD
+    oneHotEncodingAndNormalization(rawFeatures)
   }
 
-  override def generateDMatrix(datasetPath: String, containsGroundTruth: Boolean): DMatrix = {
+  def generateDMatrix(datasetPath: String, containsGroundTruth: Boolean): DMatrix = {
     val rawFeatures = parseFileToRawPassengerInfo(datasetPath)
     val labeledPoints = oneHotEncodingAndNormalization(rawFeatures)
     import ml.dmlc.xgboost4j.scala.spark.DataUtils._
