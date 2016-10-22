@@ -7,7 +7,7 @@ import ml.dmlc.xgboost4j.scala.DMatrix
 import ml.dmlc.xgboost4j.scala.spark.{XGBoostEstimator, XGBoost}
 import org.apache.spark.SparkContext
 import org.apache.spark.ml.evaluation.{BinaryClassificationEvaluator, RegressionEvaluator}
-import org.apache.spark.ml.tuning.{ParamGridBuilder, CrossValidator}
+import org.apache.spark.ml.tuning.{TrainValidationSplit, ParamGridBuilder, CrossValidator}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Row, SparkSession}
 
@@ -22,7 +22,7 @@ object Main {
     val trainingList = featureGenerator.generateLabeledPointRDD(trainingPath, containsGroundTruth = true)
     val sparkSession = SparkSession.builder().getOrCreate()
     import sparkSession.implicits._
-    val trainingDS = trainingList.toDS()
+    val trainingDF = trainingList.toDF("label", "features")
 
     val params = new mutable.HashMap[String, Any]()
     params += "eta" -> 0.1
@@ -38,13 +38,13 @@ object Main {
       .addGrid(xgbEstimator.eta, Array(0.1, 0.4))
       .build()
 
-    val cv = new CrossValidator()
+    val tv = new TrainValidationSplit()
       .setEstimator(xgbEstimator)
       .setEvaluator(new BinaryClassificationEvaluator().setLabelCol("label").
         setRawPredictionCol("probabilities"))
       .setEstimatorParamMaps(paramGrid)
-      .setNumFolds(3)  // Use 3+ in practice
-    val model = cv.fit(trainingDS)
+      .setTrainRatio(0.8)  // Use 3+ in practice
+    val model = tv.fit(trainingDF)
 
 
 

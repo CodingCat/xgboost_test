@@ -9,7 +9,7 @@ import org.apache.spark.ml.Pipeline
 import org.apache.spark.ml.evaluation.RegressionEvaluator
 import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer}
 import org.apache.spark.ml.param.ParamMap
-import org.apache.spark.ml.tuning.{CrossValidatorModel, CrossValidator, ParamGridBuilder}
+import org.apache.spark.ml.tuning._
 import org.apache.spark.sql.{Dataset, DataFrame, SparkSession}
 
 object Main {
@@ -134,19 +134,19 @@ object Main {
 
   private def crossValidation(
       xgboostParam: Map[String, Any],
-      trainingData: Dataset[_]): CrossValidatorModel = {
+      trainingData: Dataset[_]): TrainValidationSplitModel = {
     val xgbEstimator = new XGBoostEstimator(xgboostParam).setFeaturesCol("features").
       setLabelCol("logSales")
     val paramGrid = new ParamGridBuilder()
       .addGrid(xgbEstimator.round, Array(20, 50))
       .addGrid(xgbEstimator.eta, Array(0.1, 0.4))
       .build()
-    val cv = new CrossValidator()
+    val tv = new TrainValidationSplit()
       .setEstimator(xgbEstimator)
       .setEvaluator(new RegressionEvaluator().setLabelCol("logSales"))
       .setEstimatorParamMaps(paramGrid)
-      .setNumFolds(3)  // Use 3+ in practice
-    cv.fit(trainingData)
+      .setTrainRatio(0.8)  // Use 3+ in practice
+    tv.fit(trainingData)
   }
 
   def main(args: Array[String]): Unit = {
