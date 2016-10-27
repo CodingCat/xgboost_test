@@ -36,7 +36,6 @@ object Main {
     //println(xgBooster.predict(testMatrix).toList.map(_.toList))
     //println(xgBooster.booster.evalSet(evalMatries, evalMatriesName, new RMLSEEval))
     val testsetRDD = featureGenerator.generateLabeledPointRDD(testPath, containsGroundTruth = true)
-    println(xgBooster.eval(testsetRDD, evalFunc = new RMLSEEval, evalName = "test",
-      useExternalCache = false))
+    println(xgBooster.eval(xgBooster.booster, testsetRDD, "test",  new RMLSEEval))
   }
 }

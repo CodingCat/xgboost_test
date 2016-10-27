@@ -6,11 +6,11 @@ import scala.io.Source
 
 import ml.dmlc.xgboost4j.scala.spark.{XGBoostEstimator, XGBoost}
 import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.evaluation.RegressionEvaluator
+import org.apache.spark.ml.evaluation.{BinaryClassificationEvaluator, RegressionEvaluator}
 import org.apache.spark.ml.feature.{VectorAssembler, StringIndexer}
 import org.apache.spark.ml.param.ParamMap
 import org.apache.spark.ml.tuning._
-import org.apache.spark.sql.{Dataset, DataFrame, SparkSession}
+import org.apache.spark.sql.{functions, Dataset, DataFrame, SparkSession}
 
 object Main {
 
@@ -126,24 +126,29 @@ object Main {
       Array(stateHolidayIndexer, schoolHolidayIndexer, storeTypeIndexer, assortmentIndexer,
         promoInterval, vectorAssembler))
 
-    pipeline.fit(finalDS).transform(finalDS).
+    val r = pipeline.fit(finalDS).transform(finalDS).
       drop("stateHoliday", "schoolHoliday", "storeType", "assortment", "promoInterval", "sales",
       "promo2SinceWeek", "customers", "promoInterval", "competitionOpenSinceYear",
         "competitionOpenSinceMonth", "promo2SinceYear", "competitionDistance", "date")
+
+    val average = r.select(avg($"logSales")).first().get(0).asInstanceOf[Double]
+    r.withColumn("label",
+      udf{(logSales: Double) => if (logSales> average) 0 else 1}.apply(col("logSales")))
   }
 
   private def crossValidation(
       xgboostParam: Map[String, Any],
       trainingData: Dataset[_]): TrainValidationSplitModel = {
     val xgbEstimator = new XGBoostEstimator(xgboostParam).setFeaturesCol("features").
-      setLabelCol("logSales")
+      setLabelCol("label")
     val paramGrid = new ParamGridBuilder()
       .addGrid(xgbEstimator.round, Array(20, 50))
       .addGrid(xgbEstimator.eta, Array(0.1, 0.4))
       .build()
     val tv = new TrainValidationSplit()
       .setEstimator(xgbEstimator)
-      .setEvaluator(new RegressionEvaluator().setLabelCol("logSales"))
+      .setEvaluator(new BinaryClassificationEvaluator().setLabelCol("label").
+        setRawPredictionCol("probabilities"))
       .setEstimatorParamMaps(paramGrid)
       .setTrainRatio(0.8)  // Use 3+ in practice
     tv.fit(trainingData)
@@ -172,10 +177,12 @@ object Main {
     params += "max_depth" -> 6
     params += "silent" -> 1
     params += "ntreelimit" -> 1000
-    params += "objective" -> "reg:linear"
+    params += "objective" -> "binary:logistic"
     params += "subsample" -> 0.8
-    params += "round" -> 100
+    params += "nworkers" -> 4
+    params += "eval_metric" -> "logloss"
 
     val bestModel = crossValidation(params.toMap, featureEngineeredDF)
+    bestModel.transform(featureEngineeredDF).show()
   }
 }
